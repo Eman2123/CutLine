@@ -24,6 +24,32 @@ pub mod cutline {
         deposit::handle(ctx, amount)
     }
 
+    pub fn create_delegation(
+        ctx: Context<CreateDelegation>,
+        delegate: Pubkey,
+        policy: DelegationPolicy,
+    ) -> Result<()> {
+        create_delegation::handle(ctx, delegate, policy)
+    }
+
+    pub fn revoke_delegation(ctx: Context<RevokeDelegation>) -> Result<()> {
+        revoke_delegation::handle(ctx)
+    }
+
+    pub fn create_task(
+        ctx: Context<CreateTask>,
+        task_id: u64,
+        recipient: Pubkey,
+        amount: u64,
+        task_hash: [u8; 32],
+    ) -> Result<()> {
+        create_task::handle(ctx, task_id, recipient, amount, task_hash)
+    }
+
+    pub fn execute_task(ctx: Context<ExecuteTask>) -> Result<()> {
+        execute_task::handle(ctx)
+    }
+
     pub fn revoke_root(ctx: Context<RevokeRoot>) -> Result<()> {
         revoke_root::handle(ctx)
     }
