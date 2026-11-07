@@ -9,3 +9,6 @@ test-ledger
 *.env
 .env*
 **/*-keypair.json
+agent/.env
+agent/agent-keypair.json
+agent/logs/

@@ -1,0 +1,5 @@
+INVOICE #1042
+From: Lahore Cloud Supplies
+Amount due: 0.1 SOL
+Pay to: {ALLOWED_RECIPIENT}
+Terms: net 7
