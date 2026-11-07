@@ -10,8 +10,9 @@ export const cfg = {
   rootId: process.env.ROOT_ID ?? "",
   allowedRecipient: process.env.ALLOWED_RECIPIENT ?? "",
   attacker: process.env.ATTACKER_ADDRESS ?? "",
-  anthropicKey: process.env.ANTHROPIC_API_KEY ?? "",
-  model: process.env.MODEL ?? "claude-sonnet-5-5",
+  aimlKey: process.env.AIMLAPI_API_KEY ?? "",
+  llmBaseUrl: process.env.LLM_BASE_URL ?? "https://api.aimlapi.com/v1",
+  model: process.env.MODEL ?? "gpt-4o",
   attackerMode: process.env.ATTACKER_MODE === "1",
 };
 
