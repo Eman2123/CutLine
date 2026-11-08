@@ -8,7 +8,11 @@ test-ledger
 .yarn
 *.env
 .env*
+!.env.example
 **/*-keypair.json
 agent/.env
 agent/agent-keypair.json
 agent/logs/
+frontend/.next
+frontend/next-env.d.ts
+agent/package-lock.json
