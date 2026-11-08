@@ -17,6 +17,54 @@ a:hover { background: var(--yellow); }
 button:focus-visible, a:focus-visible, input:focus-visible, summary:focus-visible { outline: 4px solid var(--blue); outline-offset: 2px; }
 .mono { font-family: var(--mono); }
 
+body {
+  background: #fffbef;
+  color: #0a0a0a;
+  font-family: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+a:hover { background: #ffe14d; }
+a.plain:hover { background: transparent; }
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+summary:focus-visible {
+  outline: 4px solid #6c8cff;
+  outline-offset: 2px;
+}
+
+/* Wallet button in the same hard-edged style */
+.wallet-adapter-button {
+  height: 44px !important;
+  border-radius: 0 !important;
+  border: 3px solid #0a0a0a !important;
+  box-shadow: 4px 4px 0 #6c8cff !important;
+  font-family: "Space Mono", ui-monospace, monospace !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  padding: 0 16px !important;
+}
+.wallet-adapter-button-trigger {
+  background: #0a0a0a !important;
+  color: #fffbef !important;
+}
+.wallet-adapter-button-trigger:not([disabled]):hover {
+  background: #1f1f1f !important;
+}
+.wallet-adapter-dropdown-list {
+  border-radius: 0 !important;
+  border: 3px solid #0a0a0a !important;
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.marquee { animation: marquee 40s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .marquee { animation: none; }
+}
 .cl-ticker { background: var(--ink); color: var(--yellow); font: 700 12px var(--mono); letter-spacing: .12em; padding: 8px 32px; white-space: nowrap; overflow: hidden; }
 .cl-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 24px; padding: 20px 32px; border-bottom: 4px solid var(--ink); background: var(--white); }
 .cl-brand { display: flex; align-items: center; gap: 14px; font-size: 28px; font-weight: 700; letter-spacing: .06em; line-height: 1; }
