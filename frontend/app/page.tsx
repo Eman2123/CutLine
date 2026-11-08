@@ -1,101 +1,54 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PublicKey, Transaction } from "@solana/web3.js";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import {
   PROGRAM_ID, Snapshot, explorerAddr, explorerTx, loadSnapshot, revokeRootIx, short, sol,
 } from "@/lib/cutline";
-import {
-  IconAlert, IconArrowRight, IconBot, IconCheck, IconClock, IconExternal, IconHistory,
-  IconKey, IconNetwork, IconRefresh, IconScissors, IconSettings, IconShield, IconShieldOff,
-  IconTasks, IconVault, IconX, LogoMark,
-} from "@/components/icons";
 
 const ENV_OWNER = process.env.NEXT_PUBLIC_ROOT_OWNER ?? "";
 const ENV_ROOT_ID = process.env.NEXT_PUBLIC_ROOT_ID ?? "";
 
-type Tone = "green" | "red" | "amber" | "slate";
+type Tone = "g" | "r" | "y" | "w" | "stale";
+const Chip = ({ tone, children }: { tone: Tone; children: React.ReactNode }) => (
+  <span className={`cl-chip ${tone}`}>{children}</span>
+);
 
-const TONES: Record<Tone, string> = {
-  green: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  red: "bg-rose-50 text-rose-700 ring-rose-200",
-  amber: "bg-amber-50 text-amber-800 ring-amber-200",
-  slate: "bg-slate-100 text-slate-700 ring-slate-200",
-};
+const Svg = ({ children, size = 28, stroke = 3 }: { children: React.ReactNode; size?: number; stroke?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#0A0A0A" strokeWidth={stroke} strokeLinecap="square" aria-hidden="true">
+    {children}
+  </svg>
+);
 
-function Badge({ tone, children, icon }: { tone: Tone; children: React.ReactNode; icon?: React.ReactNode }) {
+function Stat({ bg, label, value, hint, icon }: { bg: string; label: string; value: React.ReactNode; hint: string; icon: React.ReactNode }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${TONES[tone]}`}>
-      {icon}
-      {children}
-    </span>
-  );
-}
-
-function Card({
-  title, icon, right, children, className = "",
-}: { title: string; icon: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; className?: string }) {
-  return (
-    <section className={`rounded-2xl border border-slate-200 bg-white shadow-sm ${className}`}>
-      <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700">{icon}</span>
-          <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-        </div>
-        {right}
-      </div>
-      <div className="p-5">{children}</div>
-    </section>
-  );
-}
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">{children}</p>;
-}
-
-function Addr({ value }: { value: string }) {
-  return (
-    <a
-      href={explorerAddr(value)}
-      target="_blank"
-      rel="noreferrer"
-      className="inline-flex items-center gap-1 font-mono text-[13px] text-sky-700 hover:text-sky-900 hover:underline"
-    >
-      {short(value)}
-      <IconExternal width={12} height={12} />
-    </a>
-  );
-}
-
-function Stat({
-  label, value, hint, icon, tone = "slate",
-}: { label: string; value: React.ReactNode; hint?: React.ReactNode; icon: React.ReactNode; tone?: Tone }) {
-  const iconTone: Record<Tone, string> = {
-    green: "bg-emerald-50 text-emerald-600",
-    red: "bg-rose-50 text-rose-600",
-    amber: "bg-amber-50 text-amber-600",
-    slate: "bg-slate-100 text-slate-600",
-  };
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</span>
-        <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconTone[tone]}`}>{icon}</span>
-      </div>
-      <div className="mt-3 font-mono text-3xl font-semibold tracking-tight text-slate-900">{value}</div>
-      {hint && <div className="mt-1 text-xs text-slate-500">{hint}</div>}
+    <div className="cl-stat" style={{ background: bg }}>
+      <div className="cl-stat-h"><span>{label}</span>{icon}</div>
+      <div className="cl-stat-n">{value}</div>
+      <div style={{ fontSize: 13, fontWeight: 500 }}>{hint}</div>
     </div>
   );
 }
 
-function fmtTime(seconds: bigint): string {
-  if (seconds <= BigInt(0)) return "—";
-  return new Date(Number(seconds) * 1000).toLocaleString(undefined, {
-    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
-  });
+function Card({ title, right, children }: { title: string; right?: string; children: React.ReactNode }) {
+  return (
+    <section className="cl-card">
+      <div className="cl-card-h"><h2 className="cl-h2">{title}</h2>{right && <span>{right}</span>}</div>
+      {children}
+    </section>
+  );
 }
+
+const Addr = ({ value }: { value: string }) => (
+  <a className="mono" style={{ fontSize: 13, fontWeight: 700 }} href={explorerAddr(value)} target="_blank" rel="noopener noreferrer">
+    {short(value)} ↗
+  </a>
+);
+
+const fmtTime = (s: bigint) =>
+  s <= BigInt(0) ? "—" : new Date(Number(s) * 1000).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
 export default function Page() {
   const { connection } = useConnection();
@@ -108,6 +61,8 @@ export default function Page() {
   const [modal, setModal] = useState(false);
   const [busy, setBusy] = useState(false);
   const [lastSig, setLastSig] = useState<string | null>(null);
+  const revokeBtn = useRef<HTMLButtonElement>(null);
+  const cancelBtn = useRef<HTMLButtonElement>(null);
 
   const target = useMemo(() => {
     try {
@@ -134,9 +89,21 @@ export default function Page() {
     return () => clearInterval(t);
   }, [refresh]);
 
+  useEffect(() => {
+    if (!modal) return;
+    cancelBtn.current?.focus();
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !busy) closeModal(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modal, busy]);
+
+  function closeModal() { setModal(false); revokeBtn.current?.focus(); }
+
   const root = snap?.root ?? null;
   const isOwner = !!(publicKey && root && publicKey.equals(root.owner));
   const canRevoke = isOwner && !!root?.active;
+  const revoked = !!root && !root.active;
 
   async function confirmRevoke() {
     if (!publicKey || !snap || !root) return;
@@ -158,383 +125,283 @@ export default function Page() {
 
   const spentPct = snap?.vault && snap.vault.budgetCap > BigInt(0)
     ? Number((snap.vault.spent * BigInt(10000)) / snap.vault.budgetCap) / 100 : 0;
-
-  const delegations = useMemo(
-    () => [...(snap?.delegations ?? [])].sort((a, b) => a.depth - b.depth),
-    [snap]
-  );
-  const validDelegations = root
-    ? delegations.filter((d) => d.active && d.issuedEpoch === root.epoch).length : 0;
+  const delegations = useMemo(() => [...(snap?.delegations ?? [])].sort((a, b) => a.depth - b.depth), [snap]);
   const tasks = snap?.tasks ?? [];
-  const blockedTasks = root
-    ? tasks.filter((t) => t.status === "Pending" && t.issuedEpoch !== root.epoch).length : 0;
-  const runnableTasks = root
-    ? tasks.filter((t) => t.status === "Pending" && t.issuedEpoch === root.epoch).length : 0;
+  const isStale = (issued: bigint) => !!root && issued !== root.epoch;
+  const validDelegations = root ? delegations.filter((d) => d.active && !isStale(d.issuedEpoch)).length : 0;
+  const blockedTasks = root ? tasks.filter((t) => t.status === "Pending" && isStale(t.issuedEpoch)).length : 0;
+  const runnableTasks = root ? tasks.filter((t) => t.status === "Pending" && !isStale(t.issuedEpoch)).length : 0;
+  const executedTasks = tasks.filter((t) => t.status === "Executed").length;
+  const notAllowed = (agent: PublicKey, recipient: PublicKey) => {
+    const d = snap?.delegations.find((x) => x.delegate.equals(agent));
+    return !!d && !d.allowed.some((a) => a.equals(recipient));
+  };
 
-  const revokeHint = !publicKey
-    ? "Connect the owner wallet to revoke"
-    : !isOwner ? "Only the root owner can revoke"
-    : root?.active ? "" : "Already revoked";
+  const revokeHint = !publicKey ? "CONNECT THE OWNER WALLET TO REVOKE"
+    : !isOwner ? "ONLY THE ROOT OWNER CAN REVOKE"
+    : root?.active ? "OWNER WALLET SIGNS IN PHANTOM" : "ALREADY REVOKED";
 
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/85 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-3">
-            <LogoMark />
-            <div className="leading-tight">
-              <div className="text-[15px] font-bold tracking-[0.14em] text-slate-900">CUTLINE</div>
-              <div className="text-xs text-slate-500">Revocable spend authority for AI agents</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="hidden items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 sm:inline-flex">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              Solana Devnet
-            </span>
-            <WalletMultiButton />
-          </div>
+    <div>
+      <div className="cl-ticker">
+        SOLANA DEVNET // ONE WRITE KILLS THE WHOLE TREE // THE PROGRAM DECIDES, NOT THE AGENT // EPOCH CHECKED AT EVERY EXECUTION //
+      </div>
+
+      <header className="cl-header">
+        <div className="cl-brand">
+          <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true">
+            <rect x="2" y="2" width="40" height="40" fill="#FFE14D" stroke="#0A0A0A" strokeWidth="4" />
+            <rect x="12" y="12" width="20" height="20" fill="none" stroke="#0A0A0A" strokeWidth="4" />
+            <path d="M8 36L36 8" stroke="#FF5A4D" strokeWidth="5" strokeDasharray="5 4" />
+          </svg>
+          CUTLINE
+        </div>
+        <div className="cl-row">
+          <span className="cl-chip g" style={{ padding: "8px 14px", letterSpacing: ".06em" }}>DEVNET</span>
+          <WalletMultiButton />
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
-        {/* Hero */}
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <div className="flex flex-wrap items-start justify-between gap-6">
-            <div className="max-w-2xl">
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-                  {root ? `Root #${root.rootId.toString().slice(-6)}` : "Root authorization"}
-                </h1>
-                {root && (root.active
-                  ? <Badge tone="green" icon={<span className="pulse-dot h-2 w-2 rounded-full bg-emerald-500" />}>ACTIVE</Badge>
-                  : <Badge tone="red" icon={<IconShieldOff width={14} height={14} />}>REVOKED</Badge>)}
-              </div>
-              <p className="mt-3 text-[15px] leading-relaxed text-slate-600">
-                Give the agent a policy, not your money. One transaction revokes the root, and every
-                delegation and queued task under it stops passing the program&apos;s epoch check.
-              </p>
+      <main className="cl-main" aria-live="polite">
+        <section className="cl-hero">
+          <div>
+            <div className="cl-eyebrow">ROOT AUTHORIZATION</div>
+            <div className="cl-row" style={{ gap: 20 }}>
+              <h1 className="cl-h1">{root ? `ROOT #${root.rootId.toString().slice(-6)}` : "ROOT"}</h1>
+              {root && (root.active
+                ? <div className="cl-stamp g" style={{ transform: "rotate(-3deg)" }}>ACTIVE</div>
+                : <div className="cl-stamp r" style={{ transform: "rotate(3deg)" }}>REVOKED</div>)}
             </div>
-            <div className="flex flex-col items-start gap-2 sm:items-end">
-              <button
-                disabled={!canRevoke}
-                onClick={() => setModal(true)}
-                title={revokeHint}
-                className="inline-flex h-12 items-center gap-2.5 rounded-xl bg-rose-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
-              >
-                <IconScissors width={18} height={18} />
-                Revoke Root
-              </button>
-              {revokeHint && <span className="text-xs text-slate-500">{revokeHint}</span>}
-            </div>
+            <p className="cl-lead">
+              Give the agent a policy, not your money. One transaction cuts the root, and every delegation and queued
+              task under it stops passing the program&apos;s epoch check.
+            </p>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, alignItems: "flex-start" }}>
+            <button
+              ref={revokeBtn}
+              type="button"
+              disabled={!canRevoke}
+              onClick={() => setModal(true)}
+              className="cl-btn cl-btn-big r"
+            >
+              <Svg><circle cx="6" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M8.5 8.5L21 21M8.5 15.5L21 3" /></Svg>
+              REVOKE ROOT
+            </button>
+            <div className="mono" style={{ fontSize: 12, fontWeight: 700 }}>{revokeHint}</div>
           </div>
         </section>
 
-        {error && (
-          <div role="alert" className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-            <IconAlert className="mt-0.5 shrink-0" width={18} height={18} />
-            <span className="break-words">{error}</span>
-          </div>
-        )}
+        {error && <div role="alert" className="cl-error">{error}</div>}
 
-        {root && !root.active && (
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-rose-200 bg-rose-50 p-5">
-            <div className="flex items-start gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-rose-600 ring-1 ring-rose-200">
-                <IconShieldOff width={18} height={18} />
-              </span>
-              <div>
-                <div className="font-semibold text-rose-900">
-                  Root revoked. Epoch is now {root.epoch.toString()}.
-                </div>
-                <div className="mt-0.5 text-sm text-rose-800">
-                  Everything issued at an older epoch is stale and rejected on-chain. Nothing had to be deleted one by one.
-                </div>
+        {revoked && root && (
+          <section className="cl-banner">
+            <div style={{ flex: "1 1 420px" }}>
+              <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.1 }}>
+                ROOT REVOKED. EPOCH NOW {root.epoch.toString()}.
+              </div>
+              <div style={{ fontSize: 16 }}>
+                Everything issued at an older epoch is stale and rejected on-chain. Nothing was deleted one by one.
               </div>
             </div>
             {lastSig && (
-              <a
-                href={explorerTx(lastSig)}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-rose-700 ring-1 ring-rose-200 hover:bg-rose-100"
-              >
-                View transaction <IconExternal width={14} height={14} />
+              <a className="mono" href={explorerTx(lastSig)} target="_blank" rel="noopener noreferrer"
+                style={{ padding: "10px 16px", background: "var(--yellow)", border: "3px solid var(--ink)", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
+                VIEW TRANSACTION ↗
               </a>
             )}
-          </div>
+          </section>
         )}
 
-        {/* Stats */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Stat
-            label="Epoch"
-            value={root ? root.epoch.toString() : "—"}
+        <section className="cl-stats">
+          <Stat bg="var(--yellow)" label="EPOCH" value={root ? root.epoch.toString() : "—"}
             hint={root ? (root.active ? "Current authorization version" : "Bumped by revoke") : "Waiting for root"}
-            icon={<IconKey width={18} height={18} />}
-            tone={root && !root.active ? "red" : "slate"}
-          />
-          <Stat
-            label="Vault"
-            value={<>{snap?.vault ? sol(snap.vaultLamports) : "—"}<span className="ml-1 text-base font-medium text-slate-500">SOL</span></>}
+            icon={<Svg><circle cx="8" cy="15" r="4" /><path d="M11 12l9-9M16 7l3 3M13 10l3 3" /></Svg>} />
+          <Stat bg="var(--blue)" label="VAULT"
+            value={<span style={{ fontSize: 44 }}>{snap?.vault ? sol(snap.vaultLamports) : "—"}<span style={{ fontSize: 18 }}> SOL</span></span>}
             hint={snap?.vault ? `${sol(snap.vault.spent)} of ${sol(snap.vault.budgetCap)} SOL budget spent` : "No vault yet"}
-            icon={<IconVault width={18} height={18} />}
-          />
-          <Stat
-            label="Valid delegations"
-            value={root ? validDelegations : "—"}
-            hint={root ? `${delegations.length - validDelegations} stale or inactive` : ""}
-            icon={<IconNetwork width={18} height={18} />}
-            tone={root && validDelegations > 0 ? "green" : "slate"}
-          />
-          <Stat
-            label="Runnable tasks"
-            value={root ? runnableTasks : "—"}
-            hint={root ? `${blockedTasks} blocked by stale epoch` : ""}
-            icon={<IconTasks width={18} height={18} />}
-            tone={blockedTasks > 0 ? "amber" : "slate"}
-          />
-        </div>
+            icon={<Svg><rect x="3" y="4" width="18" height="16" /><circle cx="12" cy="12" r="3.5" /><path d="M12 8.5V7M12 17v-1.5M8.5 12H7M17 12h-1.5" /></Svg>} />
+          <Stat bg="var(--green)" label="VALID DELEGATIONS" value={root ? validDelegations : "—"}
+            hint={root ? (revoked ? `${delegations.length - validDelegations} are stale` : `${delegations.length - validDelegations} stale or inactive`) : ""}
+            icon={<Svg><rect x="9" y="3" width="6" height="5" /><rect x="3" y="16" width="6" height="5" /><rect x="15" y="16" width="6" height="5" /><path d="M12 8v4M6 16v-4h12v4" /></Svg>} />
+          <Stat bg="var(--white)" label="RUNNABLE TASKS" value={root ? runnableTasks : "—"}
+            hint={root ? `${blockedTasks} blocked by stale epoch, ${executedTasks} executed` : ""}
+            icon={<Svg><rect x="4" y="4" width="16" height="16" /><path d="M8 9l2 2 3-3M8 15l2 2 3-3M15 10h2M15 16h2" /></Svg>} />
+        </section>
 
-        <div className="grid gap-6 lg:grid-cols-5">
-          {/* Root details */}
-          <Card title="Root details" icon={<IconShield width={18} height={18} />} className="lg:col-span-3">
-            {!root ? (
-              <Empty>{snap ? "No root account found for this owner and id." : "Loading root from devnet…"}</Empty>
-            ) : (
-              <dl className="grid gap-x-8 gap-y-4 text-sm sm:grid-cols-2">
-                <div><dt className="text-xs text-slate-500">Owner</dt><dd className="mt-1"><Addr value={root.owner.toBase58()} /></dd></div>
-                <div><dt className="text-xs text-slate-500">Root PDA</dt><dd className="mt-1"><Addr value={snap!.rootAddress.toBase58()} /></dd></div>
-                <div><dt className="text-xs text-slate-500">Program</dt><dd className="mt-1"><Addr value={PROGRAM_ID.toBase58()} /></dd></div>
-                <div><dt className="text-xs text-slate-500">Vault PDA</dt><dd className="mt-1"><Addr value={snap!.vaultAddress.toBase58()} /></dd></div>
-                <div><dt className="text-xs text-slate-500">Created</dt><dd className="mt-1 text-slate-800">{fmtTime(root.createdAt)}</dd></div>
-                <div><dt className="text-xs text-slate-500">Revoked</dt><dd className="mt-1 text-slate-800">{root.active ? "—" : fmtTime(root.revokedAt)}</dd></div>
-              </dl>
-            )}
-          </Card>
-
-          {/* Vault */}
-          <Card title="Vault budget" icon={<IconVault width={18} height={18} />} className="lg:col-span-2">
-            {!snap?.vault ? <Empty>No vault yet.</Empty> : (
-              <div className="space-y-4">
-                <div className="flex items-end justify-between">
-                  <div>
-                    <div className="text-xs text-slate-500">Spent</div>
-                    <div className="font-mono text-xl font-semibold text-slate-900">{sol(snap.vault.spent)} SOL</div>
+        <Card title="ROOT DETAILS">
+          {!root ? (
+            <div className="cl-empty">{snap ? "NO ROOT ACCOUNT FOUND FOR THIS OWNER AND ID." : target ? "LOADING ROOT FROM DEVNET…" : "SET A ROOT TO WATCH BELOW."}</div>
+          ) : (
+            <dl className="cl-dl">
+              <div><dt>OWNER</dt><dd><Addr value={root.owner.toBase58()} /></dd></div>
+              <div><dt>ROOT PDA</dt><dd><Addr value={snap!.rootAddress.toBase58()} /></dd></div>
+              <div><dt>PROGRAM</dt><dd><Addr value={PROGRAM_ID.toBase58()} /></dd></div>
+              <div><dt>VAULT PDA</dt><dd><Addr value={snap!.vaultAddress.toBase58()} /></dd></div>
+              <div><dt>CREATED</dt><dd>{fmtTime(root.createdAt)}</dd></div>
+              <div><dt>REVOKED</dt><dd>{root.active ? "—" : fmtTime(root.revokedAt)}</dd></div>
+              {snap?.vault && (
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <dt>BUDGET SPENT · {sol(snap.vault.spent)} / {sol(snap.vault.budgetCap)} SOL</dt>
+                  <div className="cl-bar" style={{ marginTop: 8 }} role="progressbar" aria-label="Budget spent"
+                    aria-valuenow={Math.round(Math.min(spentPct, 100))} aria-valuemin={0} aria-valuemax={100}>
+                    <div style={{ width: `${Math.min(spentPct, 100)}%` }} />
                   </div>
-                  <div className="text-right">
-                    <div className="text-xs text-slate-500">Tree budget cap</div>
-                    <div className="font-mono text-xl font-semibold text-slate-900">{sol(snap.vault.budgetCap)} SOL</div>
-                  </div>
-                </div>
-                <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100" role="progressbar"
-                  aria-valuenow={Math.round(Math.min(spentPct, 100))} aria-valuemin={0} aria-valuemax={100} aria-label="Budget spent">
-                  <div className="h-full rounded-full bg-slate-900" style={{ width: `${Math.min(spentPct, 100)}%` }} />
-                </div>
-                <p className="text-xs text-slate-500">
-                  Agents spend through the program only. Revoke blocks them, and the owner can withdraw what is left.
-                </p>
-              </div>
-            )}
-          </Card>
-        </div>
-
-        {/* Authorization tree */}
-        <Card
-          title="Authorization tree"
-          icon={<IconNetwork width={18} height={18} />}
-          right={<span className="text-xs text-slate-500">Epoch is checked again at every execution</span>}
-        >
-          {!root ? <Empty>Load a root to see its tree.</Empty> : (
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-white"><IconKey width={18} height={18} /></span>
-                  <div>
-                    <div className="text-sm font-semibold text-slate-900">Root owner</div>
-                    <div className="font-mono text-xs text-slate-500">{short(root.owner)}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-xs text-slate-600">epoch {root.epoch.toString()}</span>
-                  {root.active ? <Badge tone="green" icon={<IconCheck width={13} height={13} />}>ACTIVE</Badge>
-                    : <Badge tone="red" icon={<IconX width={13} height={13} />}>REVOKED</Badge>}
-                </div>
-              </div>
-
-              {!root.active && (
-                <div className="flex items-center gap-3 px-2 py-1" aria-hidden="true">
-                  <div className="h-px flex-1 border-t-2 border-dashed border-rose-300" />
-                  <span className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold tracking-wide text-rose-600">
-                    <IconScissors width={14} height={14} /> CUT AT EPOCH {root.epoch.toString()}
-                  </span>
-                  <div className="h-px flex-1 border-t-2 border-dashed border-rose-300" />
                 </div>
               )}
+            </dl>
+          )}
+        </Card>
 
-              {delegations.length === 0 ? <Empty>No delegations yet.</Empty> : delegations.map((d) => {
-                const stale = !d.active || d.issuedEpoch !== root.epoch;
+        <Card title="AUTHORIZATION TREE" right="EPOCH IS CHECKED AGAIN AT EVERY EXECUTION">
+          {!root ? <div className="cl-empty">LOAD A ROOT TO SEE ITS TREE.</div> : (
+            <>
+              <div className="cl-line">
+                <div>
+                  <div style={{ fontSize: 20, fontWeight: 700 }}>ROOT #{root.rootId.toString().slice(-6)}</div>
+                  <div className="mono" style={{ fontSize: 12 }}>owner {short(root.owner)}</div>
+                </div>
+                <div className="cl-row">
+                  <span className="mono" style={{ fontSize: 13, fontWeight: 700 }}>EPOCH {root.epoch.toString()}</span>
+                  {root.active ? <Chip tone="g">ACTIVE</Chip> : <Chip tone="r">REVOKED</Chip>}
+                </div>
+              </div>
+              {!root.active && (
+                <div className="cl-cut" aria-hidden="true"><i /><span>✂ CUT AT EPOCH {root.epoch.toString()}</span><i /></div>
+              )}
+              {delegations.length === 0 ? <div className="cl-empty">NO DELEGATIONS YET.</div> : delegations.map((d) => {
+                const stale = !d.active || isStale(d.issuedEpoch);
                 return (
-                  <div key={d.address.toBase58()} style={{ marginLeft: Math.max(d.depth - 1, 0) * 24 }}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3">
-                    <div className="flex items-start gap-3">
-                      <span className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg bg-sky-50 text-sky-700"><IconBot width={18} height={18} /></span>
+                  <div key={d.address.toBase58()} className="cl-line" style={{ paddingLeft: 24 + Math.max(d.depth - 1, 0) * 48 }}>
+                    <div className="cl-row" style={{ gap: 14, flexWrap: "nowrap" }}>
+                      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#0A0A0A" strokeWidth="2.6" strokeLinecap="square" aria-hidden="true" style={{ flex: "none" }}>
+                        <rect x="4" y="8" width="16" height="11" /><path d="M12 4v4M9 13.5v1M15 13.5v1M2 13v3M22 13v3" />
+                      </svg>
                       <div>
-                        <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900">
-                          Agent <Addr value={d.delegate.toBase58()} />
-                          <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-600">depth {d.depth}</span>
+                        <div style={{ fontSize: 20, fontWeight: 700 }}>
+                          Agent <Addr value={d.delegate.toBase58()} />{" "}
+                          <span className="mono" style={{ fontSize: 12, fontWeight: 400 }}>depth {d.depth}</span>
                         </div>
-                        <div className="mt-1 font-mono text-xs text-slate-500">
-                          {sol(d.perTxLimit)} SOL per tx · {sol(d.spent)} / {sol(d.budget)} SOL · {d.allowed.length} recipient{d.allowed.length === 1 ? "" : "s"}
+                        <div className="mono" style={{ fontSize: 12 }}>
+                          {sol(d.perTxLimit)} SOL per tx · {sol(d.spent)} / {sol(d.budget)} SOL budget · {d.allowed.length} recipient{d.allowed.length === 1 ? "" : "s"}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono text-xs text-slate-600">issued epoch {d.issuedEpoch.toString()}</span>
-                      {stale ? <Badge tone="amber" icon={<IconAlert width={13} height={13} />}>STALE</Badge>
-                        : <Badge tone="green" icon={<IconCheck width={13} height={13} />}>VALID</Badge>}
+                    <div className="cl-row">
+                      <span className="mono" style={{ fontSize: 12, fontWeight: 700 }}>ISSUED EPOCH {d.issuedEpoch.toString()}</span>
+                      {stale ? <Chip tone="stale">STALE</Chip> : <Chip tone="g">VALID</Chip>}
                     </div>
                   </div>
                 );
               })}
-            </div>
+            </>
           )}
         </Card>
 
-        {/* Tasks */}
-        <Card title="Tasks" icon={<IconTasks width={18} height={18} />}
-          right={<span className="text-xs text-slate-500">Each task remembers its issue epoch</span>}>
-          {tasks.length === 0 ? <Empty>No tasks yet.</Empty> : (
-            <div className="-mx-5 overflow-x-auto px-5">
-              <table className="w-full min-w-[640px] text-left text-sm">
-                <thead>
-                  <tr className="text-xs uppercase tracking-wide text-slate-500">
-                    <th className="pb-3 font-medium">Task</th>
-                    <th className="pb-3 font-medium">Amount</th>
-                    <th className="pb-3 font-medium">Recipient</th>
-                    <th className="pb-3 font-medium">Epoch</th>
-                    <th className="pb-3 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {tasks.map((t) => {
-                    const stale = !!root && t.status === "Pending" && t.issuedEpoch !== root.epoch;
-                    return (
-                      <tr key={t.address.toBase58()}>
-                        <td className="py-3 font-mono text-slate-700">#{t.taskId.toString().slice(-6)}</td>
-                        <td className="py-3 font-mono text-slate-900">{sol(t.amount)} SOL</td>
-                        <td className="py-3"><Addr value={t.recipient.toBase58()} /></td>
-                        <td className="py-3 font-mono text-slate-700">
-                          {t.issuedEpoch.toString()}
-                          {stale && root && <span className="ml-1 text-rose-600">≠ {root.epoch.toString()}</span>}
-                        </td>
-                        <td className="py-3">
-                          {t.status === "Executed" ? <Badge tone="green" icon={<IconCheck width={13} height={13} />}>Executed</Badge>
-                            : stale ? <Badge tone="red" icon={<IconX width={13} height={13} />}>Blocked (stale epoch)</Badge>
-                            : t.status === "Cancelled" ? <Badge tone="slate">Cancelled</Badge>
-                            : <Badge tone="amber" icon={<IconClock width={13} height={13} />}>Pending</Badge>}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+        <Card title="TASKS" right="EACH TASK REMEMBERS ITS ISSUE EPOCH">
+          {tasks.length === 0 ? <div className="cl-empty">NO TASKS YET.</div> : (
+            <div className="cl-scroll"><div className="cl-table">
+              <div className="cl-cols head"><div>TASK</div><div>AGENT</div><div>RECIPIENT</div><div>AMOUNT</div><div>EPOCH</div><div>STATUS</div></div>
+              {tasks.map((t) => {
+                const stale = t.status === "Pending" && isStale(t.issuedEpoch);
+                return (
+                  <div key={t.address.toBase58()} className="cl-cols">
+                    <div className="mono" style={{ fontSize: 14, fontWeight: 700 }}>#{t.taskId.toString().slice(-6)}</div>
+                    <div style={{ fontWeight: 700 }}><Addr value={t.agent.toBase58()} /></div>
+                    <div className="cl-row" style={{ gap: "4px 10px" }}>
+                      <Addr value={t.recipient.toBase58()} />
+                      {notAllowed(t.agent, t.recipient) && (
+                        <span style={{ fontSize: 12, fontWeight: 700, background: "var(--red)", padding: "0 6px" }}>NOT ON ALLOWLIST</span>
+                      )}
+                    </div>
+                    <div className="mono" style={{ fontSize: 13, fontWeight: 700 }}>{sol(t.amount)} SOL</div>
+                    <div className="mono" style={{ fontSize: 13 }}>
+                      {t.issuedEpoch.toString()}{stale && root ? ` ≠ ${root.epoch.toString()}` : ""}
+                    </div>
+                    <div>
+                      {t.status === "Executed" ? <Chip tone="g">EXECUTED</Chip>
+                        : stale ? <Chip tone="stale">BLOCKED · STALE</Chip>
+                        : t.status === "Cancelled" ? <Chip tone="w">CANCELLED</Chip>
+                        : <Chip tone="w">PENDING</Chip>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div></div>
           )}
         </Card>
 
-        {/* Audit */}
-        <Card
-          title="Security audit"
-          icon={<IconHistory width={18} height={18} />}
-          right={<span className="inline-flex items-center gap-1.5 text-xs text-slate-500"><IconRefresh width={13} height={13} />refreshes every 5s</span>}
-        >
-          {!snap || snap.audit.length === 0 ? <Empty>No transactions yet.</Empty> : (
-            <ol className="relative space-y-1 border-l border-slate-200 pl-6">
-              {snap.audit.map((a) => (
-                <li key={a.signature} className="relative flex flex-wrap items-center gap-x-4 gap-y-1 py-2">
-                  <span className={`absolute -left-[34px] flex h-5 w-5 items-center justify-center rounded-full ring-4 ring-white ${a.ok ? "bg-emerald-500 text-white" : "bg-rose-500 text-white"}`}>
-                    {a.ok ? <IconCheck width={12} height={12} strokeWidth={3} /> : <IconX width={12} height={12} strokeWidth={3} />}
-                  </span>
-                  {a.ok
-                    ? <Badge tone="green">Confirmed</Badge>
-                    : <Badge tone="red">{a.error ?? "Failed"}</Badge>}
-                  <a href={explorerTx(a.signature)} target="_blank" rel="noreferrer"
-                    className="inline-flex items-center gap-1 font-mono text-[13px] text-sky-700 hover:text-sky-900 hover:underline">
-                    {a.signature.slice(0, 10)}…{a.signature.slice(-6)}
-                    <IconExternal width={12} height={12} />
-                  </a>
-                  <span className="text-xs text-slate-400">{a.time ? new Date(a.time * 1000).toLocaleTimeString() : ""}</span>
-                </li>
-              ))}
-            </ol>
-          )}
-          <p className="mt-4 text-xs text-slate-500">
-            Rejected attempts show the program&apos;s own error code, read from the failed transaction on-chain.
-          </p>
+        <Card title="SECURITY AUDIT" right="NEWEST FIRST · REFRESHES EVERY 5S">
+          {!snap || snap.audit.length === 0 ? <div className="cl-empty">NO TRANSACTIONS YET.</div> : snap.audit.map((a) => (
+            <div key={a.signature} className="cl-audit">
+              <div className="mono" style={{ flex: "0 0 84px", fontSize: 13, fontWeight: 700 }}>
+                {a.time ? new Date(a.time * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
+              </div>
+              <div style={{ flex: "1 1 320px" }}>
+                <div style={{ fontSize: 17, fontWeight: 700 }}>{a.ok ? "Transaction confirmed" : a.error ?? "Transaction failed"}</div>
+                {!a.ok && <div style={{ fontSize: 14 }}>Rejected by the program, error read from the failed transaction on-chain.</div>}
+              </div>
+              <div className="cl-row" style={{ gap: "10px 16px" }}>
+                {a.ok ? <Chip tone="g">CONFIRMED</Chip> : <Chip tone="r">REJECTED ON-CHAIN</Chip>}
+                <a className="mono" style={{ fontSize: 13, fontWeight: 700 }} href={explorerTx(a.signature)} target="_blank" rel="noopener noreferrer"
+                  aria-label={`Open transaction ${a.signature} in Solana Explorer`}>
+                  {a.signature.slice(0, 4)}…{a.signature.slice(-4)} ↗
+                </a>
+              </div>
+            </div>
+          ))}
         </Card>
 
-        {/* Watch settings */}
-        <details className="group rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 text-sm font-semibold text-slate-900">
-            <span className="flex items-center gap-2.5">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700"><IconSettings width={18} height={18} /></span>
-              Root to watch
-            </span>
-            <IconArrowRight width={16} height={16} className="text-slate-400 transition group-open:rotate-90" />
-          </summary>
-          <div className="border-t border-slate-100 p-5">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="text-xs font-medium text-slate-600">
-                Owner address
-                <input value={ownerText} onChange={(e) => setOwnerText(e.target.value)} spellCheck={false}
-                  className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 font-mono text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10" />
-              </label>
-              <label className="text-xs font-medium text-slate-600">
-                Root id
-                <input value={rootIdText} onChange={(e) => setRootIdText(e.target.value)} spellCheck={false}
-                  className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 font-mono text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10" />
-              </label>
-            </div>
+        <details className="cl-card cl-details">
+          <summary>ROOT TO WATCH</summary>
+          <div style={{ padding: 24, display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
+            <label className="mono" style={{ fontSize: 12, fontWeight: 700 }}>
+              OWNER ADDRESS
+              <input className="cl-input" value={ownerText} onChange={(e) => setOwnerText(e.target.value)} spellCheck={false} />
+            </label>
+            <label className="mono" style={{ fontSize: 12, fontWeight: 700 }}>
+              ROOT ID
+              <input className="cl-input" value={rootIdText} onChange={(e) => setRootIdText(e.target.value)} spellCheck={false} />
+            </label>
             {!target && (
-              <p className="mt-3 flex items-center gap-2 text-xs text-amber-700">
-                <IconAlert width={14} height={14} /> Enter a valid owner address and root id to load state from devnet.
+              <p className="mono" style={{ gridColumn: "1 / -1", margin: 0, fontSize: 12, fontWeight: 700 }}>
+                ENTER A VALID OWNER ADDRESS AND ROOT ID TO LOAD STATE FROM DEVNET.
               </p>
             )}
           </div>
         </details>
 
-        <footer className="pb-6 text-center text-xs text-slate-500">
-          Reads live accounts from Solana Devnet. The owner key never leaves your wallet, and the program makes the final decision.
-        </footer>
+        <p className="cl-note">
+          LIVE DATA FROM SOLANA DEVNET. THE OWNER KEY NEVER LEAVES YOUR WALLET, AND THE PROGRAM MAKES THE FINAL DECISION.
+        </p>
       </main>
 
       {modal && root && snap && (
-        <div role="dialog" aria-modal="true" aria-labelledby="revoke-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-600"><IconScissors width={20} height={20} /></span>
-              <h3 id="revoke-title" className="text-lg font-semibold text-slate-900">Revoke this root?</h3>
+        <div className="cl-overlay" onClick={(e) => { if (e.target === e.currentTarget && !busy) closeModal(); }}>
+          <div className="cl-modal" role="dialog" aria-modal="true" aria-labelledby="revoke-title">
+            <div style={{ padding: "16px 24px", background: "var(--red)", borderBottom: "4px solid var(--ink)" }}>
+              <h2 id="revoke-title" className="cl-h2" style={{ fontSize: 28 }}>REVOKE THIS ROOT?</h2>
             </div>
-            <dl className="mt-5 space-y-2 rounded-xl bg-slate-50 p-4 text-sm">
-              <div className="flex justify-between"><dt className="text-slate-500">Root id</dt><dd className="font-mono text-slate-900">{root.rootId.toString()}</dd></div>
-              <div className="flex justify-between"><dt className="text-slate-500">Epoch</dt>
-                <dd className="font-mono font-semibold text-rose-700">{root.epoch.toString()} → {(root.epoch + BigInt(1)).toString()}</dd></div>
-            </dl>
-            <p className="mt-4 text-sm leading-relaxed text-slate-600">
-              One transaction invalidates every delegation and every queued task under this root. This cannot be undone;
-              new authority needs a new root.
-            </p>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setModal(false)} disabled={busy}
-                className="h-11 rounded-xl border border-slate-300 px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
-                Cancel
-              </button>
-              <button onClick={confirmRevoke} disabled={busy}
-                className="inline-flex h-11 items-center gap-2 rounded-xl bg-rose-600 px-5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-60">
-                {busy ? "Waiting for Phantom…" : "Confirm and sign"}
-              </button>
+            <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 18 }}>
+              <div className="cl-row">
+                <span className="cl-chip w" style={{ padding: "6px 12px", fontSize: 14 }}>ROOT ID {root.rootId.toString().slice(-6)}</span>
+                <span className="cl-chip y" style={{ padding: "6px 12px", fontSize: 14 }}>EPOCH {root.epoch.toString()} → {(root.epoch + BigInt(1)).toString()}</span>
+              </div>
+              <ul style={{ margin: 0, paddingLeft: 22, display: "flex", flexDirection: "column", gap: 6, fontSize: 16 }}>
+                <li>Bumps the root epoch and deactivates the root.</li>
+                <li>Makes every delegation and task from the current epoch stale.</li>
+                <li>Blocks stale tasks at the program, even if an agent still holds them.</li>
+                <li>Cannot be undone; new authority needs a new root.</li>
+              </ul>
+              <div className="mono" style={{ fontSize: 12, fontWeight: 700 }}>
+                PHANTOM WILL ASK YOU TO SIGN. CONFIRMED TRANSACTIONS CANNOT BE UNDONE.
+              </div>
+              <div className="cl-row" style={{ justifyContent: "flex-end", gap: 14 }}>
+                <button ref={cancelBtn} type="button" className="cl-btn cl-btn-sm w" onClick={closeModal} disabled={busy}>CANCEL</button>
+                <button type="button" className="cl-btn cl-btn-sm r" style={{ boxShadow: "6px 6px 0 var(--ink)" }} onClick={confirmRevoke} disabled={busy}>
+                  {busy ? "WAITING FOR PHANTOM…" : "CONFIRM REVOCATION"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
