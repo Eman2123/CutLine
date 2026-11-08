@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "setup": "tsx src/setup.ts",
-    "agent": "tsx src/index.ts"
+    "agent": "tsx src/index.ts",
+    "revoke": "tsx src/revoke.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",
